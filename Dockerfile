@@ -1,47 +1,54 @@
-# Use uma imagem base ARM Linux (Debian, Ubuntu são boas opções)
-FROM ubuntu:latest
+# Imagem base para ARM (Ubuntu 20.04)
+FROM arm64v8/ubuntu:20.04
 
-# Informações sobre o autor (opcional)
-LABEL maintainer="Seu Nome <seuemail@example.com>"
+# Variável para evitar interatividade durante a instalação
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Atualiza o sistema e instala dependências necessárias
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget curl ca-certificates lib32stdc++6 lib32z1 lib32ncurses5 iproute2 \
-    && rm -rf /var/lib/apt/lists/* # Limpa listas do apt para reduzir tamanho da imagem
+# Atualiza e instala dependências essenciais e bibliotecas necessárias
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    wget \
+    curl \
+    libgl1-mesa-dev \
+    libgl1-mesa-dri \
+    libasound2-dev \
+    libxi-dev \
+    libxrandr-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-# Instala o Box64
-RUN ARCH=$(dpkg --print-architecture) && \
-    if [ "$ARCH" = "aarch64" ]; then \
-      wget https://github.com/ptitSeb/box64/releases/download/v0.2.5/box64-debian-bullseye.deb && \
-      dpkg -i box64-debian-bullseye.deb && \
-      rm box64-debian-bullseye.deb; \
-    else \
-      echo "Arquitetura não ARM64, Box64 não é necessário diretamente"; \
-    fi
+# Adiciona suporte para arquitetura i386 (algumas dependências podem precisar)
+RUN dpkg --add-architecture i386 && apt-get update && apt-get install -y \
+    gcc-multilib \
+    g++-multilib \
+ && rm -rf /var/lib/apt/lists/*
 
-# Instala SteamCMD (versão Linux x86)
-RUN mkdir -p /home/steamcmd
-WORKDIR /home/steamcmd
-RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
+# Clona e compila o Box64
+RUN git clone https://github.com/ptitSeb/box64.git /opt/box64
+RUN mkdir -p /opt/box64/build && cd /opt/box64/build && \
+    cmake .. -DRUNTEST=0 && \
+    make -j$(nproc) && \
+    make install
 
-# Define o diretório de trabalho para o servidor de jogo
-WORKDIR /serverfiles
+# Cria diretório e baixa o SteamCMD (versão Linux)
+RUN mkdir -p /opt/steamcmd && cd /opt/steamcmd && \
+    wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz && \
+    tar -xvzf steamcmd_linux.tar.gz && rm steamcmd_linux.tar.gz
 
-# Expõe as portas necessárias para o servidor de jogo (CS:GO exemplo)
-EXPOSE 27015/udp
-EXPOSE 27015/tcp
-EXPOSE 27005/udp # Porta RCON (opcional, mas útil para administração remota)
+# Cria diretório onde o servidor do Stardew será instalado
+RUN mkdir -p /opt/stardew
 
-# Comando para iniciar o servidor de jogo
-# IMPORTANTE: Use `box64` para executar o steamcmd e o servidor
-ENTRYPOINT ["/bin/bash", "-c", \
-    "export LD_LIBRARY_PATH=.:/usr/lib:/usr/lib32:/usr/local/lib:/usr/local/lib32:$LD_LIBRARY_PATH && \
-     /home/steamcmd/steamcmd +login anonymous +force_install_dir /serverfiles +app_update 740 validate +quit && \
-     box64 ./srcds_run -game csgo -console -usercon +game_type 0 +game_mode 0 +mapgroup mg_bomb +map de_dust2" \
-]
+# Instala/atualiza o servidor dedicado do Stardew Valley usando SteamCMD via Box64
+RUN /usr/local/bin/box64 /opt/steamcmd/steamcmd +login anonymous +force_install_dir /opt/stardew +app_update 837470 validate +quit
 
-# Notas:
-# - `740` é o App ID do CS:GO Dedicated Server no Steam. Consulte o App ID do jogo que você quer.
-# - `srcds_run` é o executável do servidor CS:GO. O nome pode variar para outros jogos.
-# - Ajuste os parâmetros de inicialização do servidor (`+game_type`, `+game_mode`, `+map`, etc.) conforme necessário.
-# - `export LD_LIBRARY_PATH=...` é importante para garantir que o Box64 encontre as bibliotecas necessárias dentro do container.
+# Expõe a porta padrão do servidor (24642, podendo ser alterada conforme necessário)
+EXPOSE 24642
+
+# Define o diretório de trabalho
+WORKDIR /opt/stardew
+
+# Comando de inicialização do servidor dedicado via Box64
+CMD ["/usr/local/bin/box64", "./StardewValleyDedicatedServer", "-port", "24642"]
