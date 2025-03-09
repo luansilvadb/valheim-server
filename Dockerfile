@@ -19,12 +19,15 @@ RUN dpkg --add-architecture armhf
 RUN apt-get update
 RUN apt-get install -y gcc-arm-linux-gnueabihf libc6:armhf libncurses5:armhf libstdc++6:armhf
 
+# **Instalar Python 3 (necessário para o CMake do Box86)**
+RUN apt-get install -y python3
+
 # Instalar Box86
 WORKDIR /opt
 RUN git clone https://github.com/ptitSeb/box86
 WORKDIR /opt/box86
 RUN mkdir build && cd build
-RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo  # Alterado para especificar o caminho completo
+RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo  # Já corrigiu o caminho antes
 RUN make -j$(nproc)
 RUN sudo make install
 RUN sudo systemctl restart systemd-binfmt
