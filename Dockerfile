@@ -6,13 +6,7 @@ LABEL maintainer="Seu Nome <seuemail@example.com>"
 
 # Atualiza o sistema e instala dependências necessárias
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    curl \
-    ca-certificates \
-    lib32stdc++6 \  # Biblioteca 32 bits C++ necessária para muitos jogos x86
-    lib32z1 \
-    lib32ncurses5 \
-    iproute2 \     # Útil para configuração de rede dentro do container
+    wget curl ca-certificates lib32stdc++6 lib32z1 lib32ncurses5 iproute2 \
     && rm -rf /var/lib/apt/lists/* # Limpa listas do apt para reduzir tamanho da imagem
 
 # Instala o Box64
