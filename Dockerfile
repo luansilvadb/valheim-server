@@ -24,7 +24,7 @@ WORKDIR /opt
 RUN git clone https://github.com/ptitSeb/box86
 WORKDIR /opt/box86
 RUN mkdir build && cd build
-RUN cmake .. -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo  # Alterado para especificar o caminho completo
 RUN make -j$(nproc)
 RUN sudo make install
 RUN sudo systemctl restart systemd-binfmt
