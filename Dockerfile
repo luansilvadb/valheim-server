@@ -3,6 +3,12 @@ FROM ubuntu:20.04
 # Informações do autor (opcional)
 LABEL maintainer="Seu Nome <seuemail@example.com>"
 
+# Definir DEBIAN_FRONTEND para não interativo para evitar prompts
+ENV DEBIAN_FRONTEND=noninteractive
+# Definir o fuso horário para São Paulo
+ENV TZ=America/Sao_Paulo
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Atualizar pacotes e instalar dependências gerais
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y wget curl tar gzip bzip2 sudo nano
