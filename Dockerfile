@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsdl2-2.0-0 \
     openjdk-17-jre-headless # Instala o Java Runtime Environment (JRE) headless
 
-# Baixa e instala o Box64
-RUN wget https://github.com/ptitSeb/box64/releases/download/v0.2.4/box64-debian-x86_64.tar.gz -O box64.tar.gz && \
+# Baixa e instala o Box64 (Link CORRIGIDO e genérico para x86_64 Linux)
+RUN wget https://github.com/ptitSeb/box64/releases/download/v0.2.4/box64-linux-x86_64.tar.gz -O box64.tar.gz && \
     tar -xzf box64.tar.gz -C /usr/local/bin && \
     rm box64.tar.gz
 
