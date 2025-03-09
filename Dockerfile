@@ -47,7 +47,7 @@ WORKDIR /home/ubuntu
 RUN mkdir steamcmd
 WORKDIR /home/ubuntu/steamcmd
 RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
-RUN ./steamcmd.sh +quit # Inicializar SteamCMD
+RUN box86 ./steamcmd.sh +quit # Inicializar SteamCMD - Executando com box86
 
 # Instalar Servidor Valheim
 RUN ./steamcmd.sh +@sSteamCmdForcePlatformType linux +login anonymous +force_install_dir /home/ubuntu/valheim_server +app_update 896660 validate +quit
