@@ -22,25 +22,25 @@ RUN apt-get install -y gcc-arm-linux-gnueabihf libc6:armhf libncurses5:armhf lib
 # **Instalar Python 3 (necessário para o CMake do Box86)**
 RUN apt-get install -y python3
 
-# Instalar Box86
+# Install Box86
 WORKDIR /opt
 RUN git clone https://github.com/ptitSeb/box86
 WORKDIR /opt/box86
 RUN mkdir build && cd build
-RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo  # Já corrigiu o caminho antes
+RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
 RUN make -j$(nproc)
 RUN sudo make install
-RUN sudo systemctl restart systemd-binfmt
+# Removed: RUN sudo systemctl restart systemd-binfmt
 
-# Instalar Box64
+# Install Box64
 WORKDIR /opt
 RUN git clone https://github.com/ptitSeb/box64
 WORKDIR /opt/box64
 RUN mkdir build && cd build
-RUN cmake .. -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+RUN cmake /opt/box64 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
 RUN make -j$(nproc)
 RUN sudo make install
-RUN sudo systemctl restart systemd-binfmt
+# Removed: RUN sudo systemctl restart systemd-binfmt
 
 # Instalar SteamCMD
 WORKDIR /home/ubuntu
