@@ -1,69 +1,53 @@
-FROM ubuntu:20.04
+# Use uma imagem base ARM Linux (Debian, Ubuntu são boas opções)
+FROM ubuntu:latest
 
-# Informações do autor (opcional)
+# Informações sobre o autor (opcional)
 LABEL maintainer="Seu Nome <seuemail@example.com>"
 
-# Definir DEBIAN_FRONTEND para não interativo para evitar prompts
-ENV DEBIAN_FRONTEND=noninteractive
-# Definir o fuso horário para São Paulo
-ENV TZ=America/Sao_Paulo
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+# Atualiza o sistema e instala dependências necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    curl \
+    ca-certificates \
+    lib32stdc++6 \  # Biblioteca 32 bits C++ necessária para muitos jogos x86
+    lib32z1 \
+    lib32ncurses5 \
+    iproute2 \     # Útil para configuração de rede dentro do container
+    && rm -rf /var/lib/apt/lists/* # Limpa listas do apt para reduzir tamanho da imagem
 
-# Atualizar pacotes e instalar dependências gerais
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y wget curl tar gzip bzip2 sudo nano
+# Instala o Box64
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "aarch64" ]; then \
+      wget https://github.com/ptitSeb/box64/releases/download/v0.2.5/box64-debian-bullseye.deb && \
+      dpkg -i box64-debian-bullseye.deb && \
+      rm box64-debian-bullseye.deb; \
+    else \
+      echo "Arquitetura não ARM64, Box64 não é necessário diretamente"; \
+    fi
 
-# Instalar dependências para Box86/64
-RUN apt-get install -y git build-essential cmake
-RUN dpkg --add-architecture armhf
-RUN apt-get update
-RUN apt-get install -y gcc-arm-linux-gnueabihf libc6:armhf libncurses5:armhf libstdc++6:armhf
-
-# **Instalar Python 3 (necessário para o CMake do Box86)**
-RUN apt-get install -y python3
-
-# Install Box86
-WORKDIR /opt
-RUN git clone https://github.com/ptitSeb/box86
-WORKDIR /opt/box86
-RUN mkdir build && cd build
-RUN cmake /opt/box86 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
-RUN make -j$(nproc)
-RUN sudo make install
-# Removed: RUN sudo systemctl restart systemd-binfmt
-
-# Install Box64
-WORKDIR /opt
-RUN git clone https://github.com/ptitSeb/box64
-WORKDIR /opt/box64
-RUN mkdir build && cd build
-RUN cmake /opt/box64 -DRPI4ARM64=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo
-RUN make -j$(nproc)
-RUN sudo make install
-# Removed: RUN sudo systemctl restart systemd-binfmt
-
-# Instalar SteamCMD
-WORKDIR /home/ubuntu
-RUN mkdir steamcmd
-WORKDIR /home/ubuntu/steamcmd
+# Instala SteamCMD (versão Linux x86)
+RUN mkdir -p /home/steamcmd
+WORKDIR /home/steamcmd
 RUN curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
-# Executar o binário x86 steamcmd diretamente com box86 - Forçar tipo de plataforma e branch beta
-RUN box86 linux32/steamcmd +@sSteamCmdForcePlatformType linux +clientbeta client_dev
 
-# Instalar Servidor Valheim
-RUN ./steamcmd.sh +@sSteamCmdForcePlatformType linux +login anonymous +force_install_dir /home/ubuntu/valheim_server +app_update 896660 validate +quit
+# Define o diretório de trabalho para o servidor de jogo
+WORKDIR /serverfiles
 
-# Criar script start_server.sh e torná-lo executável
-WORKDIR /home/ubuntu/valheim_server
-COPY start_server.sh .
-RUN chmod +x start_server.sh
+# Expõe as portas necessárias para o servidor de jogo (CS:GO exemplo)
+EXPOSE 27015/udp
+EXPOSE 27015/tcp
+EXPOSE 27005/udp # Porta RCON (opcional, mas útil para administração remota)
 
-# Expor portas do servidor Valheim
-EXPOSE 2456-2459/tcp
-EXPOSE 2456-2459/udp
+# Comando para iniciar o servidor de jogo
+# IMPORTANTE: Use `box64` para executar o steamcmd e o servidor
+ENTRYPOINT ["/bin/bash", "-c", \
+    "export LD_LIBRARY_PATH=.:/usr/lib:/usr/lib32:/usr/local/lib:/usr/local/lib32:$LD_LIBRARY_PATH && \
+     /home/steamcmd/steamcmd +login anonymous +force_install_dir /serverfiles +app_update 740 validate +quit && \
+     box64 ./srcds_run -game csgo -console -usercon +game_type 0 +game_mode 0 +mapgroup mg_bomb +map de_dust2" \
+]
 
-# Instalar screen (opcional, mas segue o guia)
-RUN apt-get install -y screen
-
-# Comando para executar o servidor quando o contêiner iniciar
-CMD ["/bin/bash", "-c", "screen -dmS valheim ./start_server.sh; tail -f nohup.out"]
+# Notas:
+# - `740` é o App ID do CS:GO Dedicated Server no Steam. Consulte o App ID do jogo que você quer.
+# - `srcds_run` é o executável do servidor CS:GO. O nome pode variar para outros jogos.
+# - Ajuste os parâmetros de inicialização do servidor (`+game_type`, `+game_mode`, `+map`, etc.) conforme necessário.
+# - `export LD_LIBRARY_PATH=...` é importante para garantir que o Box64 encontre as bibliotecas necessárias dentro do container.
