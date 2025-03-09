@@ -1,48 +1,46 @@
-# Imagem base para ARM (Ubuntu 20.04)
-FROM arm64v8/ubuntu:20.04
+FROM debian:latest
 
-# Evita interatividade na instalação
-ENV DEBIAN_FRONTEND=noninteractive
+LABEL maintainer="Seu Nome <seu@email.com>"
 
-# Atualiza e instala dependências essenciais e bibliotecas necessárias
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    git \
+# Atualiza pacotes e instala dependências necessárias
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
-    curl \
-    libgl1-mesa-dev \
-    libgl1-mesa-dri \
-    libasound2-dev \
-    libxi-dev \
-    libxrandr-dev \
-    libxinerama-dev \
-    libxcursor-dev \
- && rm -rf /var/lib/apt/lists/*
+    tar \
+    unzip \
+    libc6 \
+    libstdc++6 \
+    libx11-6 \
+    libsdl2-2.0-0 \
+    openjdk-17-jre-headless # Instala o Java Runtime Environment (JRE) headless
 
-# Clona e compila o Box64
-RUN git clone https://github.com/ptitSeb/box64.git /opt/box64 && \
-    mkdir -p /opt/box64/build && cd /opt/box64/build && \
-    cmake .. -DRUNTEST=0 && \
-    make -j$(nproc) && \
-    make install
-
-# Configura o SteamCMD
-RUN mkdir -p /opt/steamcmd && cd /opt/steamcmd && \
-    wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz && \
-    tar -xvzf steamcmd_linux.tar.gz && rm steamcmd_linux.tar.gz
-
-# Cria diretório onde o servidor do Stardew será instalado
-RUN mkdir -p /opt/stardew
-
-# Instala/atualiza o servidor dedicado do Stardew Valley usando SteamCMD via Box64
-RUN /usr/local/bin/box64 /opt/steamcmd/steamcmd +login anonymous +force_install_dir /opt/stardew +app_update 837470 validate +quit
-
-# Expõe a porta padrão do servidor (ajuste conforme necessário)
-EXPOSE 24642
+# Baixa e instala o Box64
+RUN wget https://github.com/ptitSeb/box64/releases/download/v0.2.4/box64-debian-x86_64.tar.gz -O box64.tar.gz && \
+    tar -xzf box64.tar.gz -C /usr/local/bin && \
+    rm box64.tar.gz
 
 # Define o diretório de trabalho
-WORKDIR /opt/stardew
+WORKDIR /app
 
-# Comando de inicialização do servidor dedicado via Box64
-CMD ["/usr/local/bin/box64", "./StardewValleyDedicatedServer", "-port", "24642"]
+# Instala o SteamCMD
+RUN mkdir -p /home/steamcmd && \
+    wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -O /home/steamcmd/steamcmd_linux.tar.gz && \
+    tar -xzf /home/steamcmd/steamcmd_linux.tar.gz -C /home/steamcmd && \
+    rm /home/steamcmd/steamcmd_linux.tar.gz
+
+# Baixa o servidor dedicado de Stardew Valley usando SteamCMD (app ID 1472170)
+RUN /home/steamcmd/steamcmd +force_install_dir /app/stardewvalley_server +login anonymous +app_update 1472170 validate +quit
+
+# Exponha a porta padrão do Stardew Valley (24670 UDP e TCP)
+EXPOSE 24670/udp
+EXPOSE 24670/tcp
+
+# Comando para iniciar o servidor Stardew Valley dentro do container usando Box64 e Java
+CMD ["/bin/bash", "-c", "cd stardewvalley_server && box64 java -jar StardewValleyServer.jar"]
+
+# Instruções para o usuário sobre como executar o servidor
+# CMD echo "--- INSTRUÇÕES ---" && \
+#     echo "1. Construa a imagem Docker: docker build -t stardew-valley-server-arm ." && \
+#     echo "2. Execute o container: docker run -it --rm -p <porta_host>:24670/udp -p <porta_host>:24670/tcp stardew-valley-server-arm" && \
+#     echo "   (Substitua <porta_host> pela porta que você deseja usar na sua máquina host)" && \
+#     echo "--- FIM INSTRUÇÕES ---" && \
+#     /bin/bash
